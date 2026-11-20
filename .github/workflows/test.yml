@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send marked test card
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          VOX_REPO: ${{ secrets.VOX_REPO }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          git clone -q --depth 1 "https://x-access-token:${GH_PAT}@github.com/${VOX_REPO}.git" vox >/dev/null 2>&1; echo "fetch $?"
+          pip install -q requests beautifulsoup4 >/dev/null 2>&1
+          cd vox
+          python - <<'PY' 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | tail -8
+          import os, re, requests
+          import telegram_cards as tc
+          r = requests.get("https://egy.voxcinemas.com/movies/dune-part-three", headers=tc.UA, timeout=20)
+          m = re.search(r'property="og:image"\s+content="([^"]+)"', r.text) or re.search(r'content="([^"]+)"\s+property="og:image"', r.text)
+          poster = tc.resolve_poster(m.group(1)) if m else None
+          print("vox page", r.status_code, "poster resolved", bool(poster))
+          tc.send_card(os.environ["BOT_TOKEN"], os.environ["CHAT_ID"],
+                       "<b>TEST CARD - NOT A REAL ALERT</b>",
+                       ["Replacement runner send path check (VOX poster path).", "No action needed. Ignore this message."],
+                       photo=poster)
+          print("send_card returned")
+          PY
