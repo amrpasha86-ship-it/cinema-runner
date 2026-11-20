@@ -18,7 +18,7 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           git clone -q --depth 1 "https://x-access-token:${GH_PAT}@github.com/${VOX_REPO}.git" vox >/dev/null 2>&1; echo "fetch $?"
-          pip install -q requests beautifulsoup4 >/dev/null 2>&1
+          pip install -q requests beautifulsoup4 python-dotenv >/dev/null 2>&1
           cd vox
           python - <<'PY' 2>&1 | sed -E 's#https?://[^ ]+#<url>#g' | tail -8
           import os, re, requests
