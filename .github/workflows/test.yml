@@ -25,10 +25,18 @@ jobs:
           import telegram_cards as tc
           import vox_rotating_core as vox
           try:
-              page = vox.get_page("https://egy.voxcinemas.com/movies/dune-part-three")
+              page = vox.get_page("https://egy.voxcinemas.com/showtimes?c=city-centre-almaza&c=mall-of-egypt")
               print("vox get_page ok")
-              el = page.select_one('meta[property="og:image"]')
-              poster = tc.resolve_poster(el["content"]) if el else None
+              poster = None
+              for art in page.select("article.movie-compare"):
+                  img = art.select_one("aside.movie-hero img")
+                  if img:
+                      src = (img.get("data-src") or img.get("src") or "").strip()
+                      if src:
+                          from urllib.parse import urljoin
+                          poster = tc.resolve_poster(urljoin("https://egy.voxcinemas.com/", src))
+                          if poster:
+                              break
           except Exception as e:
               print("vox fetch error", type(e).__name__)
               poster = None
