@@ -1,0 +1,64 @@
+name: Run
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cinema-run
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: amrpasha86-ship-it/VOX-Egypt-Telegram-Bot
+          token: ${{ secrets.GH_PAT }}
+          path: vox
+      - uses: actions/checkout@v4
+        with:
+          repository: amrpasha86-ship-it/renaissance-downtown-bot
+          token: ${{ secrets.GH_PAT }}
+          path: rns
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -q requests beautifulsoup4 python-dotenv
+      - name: VOX
+        env:
+          TZ: Africa/Cairo
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          cd vox
+          python vox_rotating_github.py > /tmp/vox.log 2>&1; echo "vox exit $?"
+      - name: Renaissance
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          cd rns
+          printf 'BOT_TOKEN=%s\nCHAT_ID=%s\n' "$BOT_TOKEN" "$CHAT_ID" > .env
+          python monitor.py --once > /tmp/rns1.log 2>&1; echo "rns exit $?"
+          python upcoming_monitor.py --once > /tmp/rns2.log 2>&1; echo "upcoming exit $?"
+          rm -f .env
+      - name: Save state
+        if: always()
+        run: |
+          save() {
+            cd "$1"
+            git config user.name "monitor"
+            git config user.email "monitor@users.noreply.github.com"
+            git add -f $2
+            if ! git diff --cached --quiet; then
+              git commit -q -m "Update monitor state"
+              git pull -q --rebase -X theirs origin main || git rebase --abort || true
+              git push -q && echo "$1 state saved"
+            fi
+            cd ..
+          }
+          save vox vox_rotating_state.json
+          save rns "renaissance_state.json upcoming_state.json"
