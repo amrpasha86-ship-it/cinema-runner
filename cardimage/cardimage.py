@@ -28,7 +28,7 @@ def _row(icon, text):
             '<span>%s</span></div>' % (ICONS.get(icon, ICONS["star"]), html.escape(str(text))))
 
 
-def build_html(badge, accent, movie, rows, poster_url, footer, brand):
+def build_html(badge, accent, movie, rows, poster_url, footer, brand, wide=False):
     f = "file://" + FONTS
     bg = ('background-image:url("%s");' % poster_url) if poster_url else ""
     rows_html = "".join(_row(i, t) for i, t in rows)
@@ -42,7 +42,7 @@ def build_html(badge, accent, movie, rows, poster_url, footer, brand):
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:%(W)dpx;height:%(H)dpx;overflow:hidden;background:#0a0c14}
 body{font-family:A,L,sans-serif;color:#fff;position:relative}
-.bg{position:absolute;inset:0;%(bg)sbackground-size:cover;background-position:center top;background-color:#161a2b}
+.bg{position:absolute;inset:0;%(bg)s%(bgpos)sbackground-color:#161a2b}
 .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,10,20,.55) 0%%,rgba(8,10,20,0) 22%%,rgba(8,10,20,0) 38%%,rgba(8,10,20,.82) 62%%,rgba(8,10,20,.97) 100%%)}
 .top{position:absolute;top:44px;left:48px;right:48px;display:flex;justify-content:space-between;align-items:center}
 .brand{font-family:L;font-weight:700;letter-spacing:6px;font-size:26px;opacity:.92;text-shadow:0 2px 12px #000}
@@ -58,9 +58,33 @@ body{font-family:A,L,sans-serif;color:#fff;position:relative}
 <div class="bg"></div><div class="shade"></div>
 <div class="top"><div class="brand">%(brand)s</div><div class="badge">%(badge)s</div></div>
 <div class="panel"><div class="title">%(movie)s</div><div class="bar"></div>%(rows)s%(foot)s</div>
-</body></html>""" % dict(f=f, W=W, H=H, bg=bg, accent=accent, size=size,
+</body></html>""" % dict(f=f, W=W, H=H, bg=bg, bgpos=('background-size:auto 72%;background-repeat:no-repeat;background-position:right top;' if wide else 'background-size:cover;background-position:center top;'), accent=accent, size=size,
                           brand=html.escape(brand), badge=html.escape(badge),
                           movie=html.escape(movie), rows=rows_html, foot=foot)
+
+
+def _dims(path):
+    try:
+        d = open(path, "rb").read(400000)
+        if d[:8] == b"\x89PNG\r\n\x1a\n":
+            return int.from_bytes(d[16:20], "big"), int.from_bytes(d[20:24], "big")
+        i = 2
+        while i < len(d) - 9:
+            if d[i] != 0xFF:
+                i += 1
+                continue
+            m = d[i + 1]
+            if 0xC0 <= m <= 0xCF and m not in (0xC4, 0xC8, 0xCC):
+                return int.from_bytes(d[i + 7:i + 9], "big"), int.from_bytes(d[i + 5:i + 7], "big")
+            i += 2 + int.from_bytes(d[i + 2:i + 4], "big")
+    except Exception:
+        pass
+    return None
+
+
+def _wide(p):
+    d = _dims(p) if p else None
+    return bool(d and d[0] > 1.3 * d[1])
 
 
 def render_png(out_path, badge, accent, movie, rows, poster_path=None,
@@ -74,7 +98,7 @@ def render_png(out_path, badge, accent, movie, rows, poster_path=None,
         with tempfile.TemporaryDirectory() as tmp:
             page = os.path.join(tmp, "card.html")
             with open(page, "w", encoding="utf-8") as fh:
-                fh.write(build_html(badge, accent, movie, rows, poster_url, footer, brand))
+                fh.write(build_html(badge, accent, movie, rows, poster_url, footer, brand, wide=_wide(poster_path)))
             cmd = [chrome, "--headless=new", "--no-sandbox", "--disable-gpu",
                    "--hide-scrollbars", "--force-device-scale-factor=1",
                    "--allow-file-access-from-files",

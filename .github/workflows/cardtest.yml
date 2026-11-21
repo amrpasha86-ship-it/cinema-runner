@@ -20,25 +20,85 @@ jobs:
           git clone -q --depth 1 "https://x-access-token:${GH_PAT}@github.com/${RNS_REPO}.git" rns >/dev/null 2>&1; echo "f2 $?"
           pip install -q requests beautifulsoup4 python-dotenv >/dev/null 2>&1; echo "pip $?"
           mkdir -p /tmp/out
-      - name: Poster diag
+      - name: VOX real path
         env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
           CARDIMAGE_DIR: ${{ github.workspace }}/ci/cardimage
+          TZ: Africa/Cairo
         run: |
           cd vox
-          python - <<'PY2' 2>&1 | tail -12
-          import requests
+          python - <<'PY' 2>&1 | tail -6
+          import os
           import telegram_cards as tg
+          orig = tg._post_photo
+          n = [0]
+          def spy(token, chat, photo, caption, files=None):
+              if files:
+                  n[0] += 1
+                  open("/tmp/out/vox%d.png" % n[0], "wb").write(files["photo"][1])
+              return orig(token, chat, photo, caption, files=files)
+          tg._post_photo = spy
           import vox_rotating_core as vox
           import vox_rotating_github as g
           page = vox.get_page(g.BASE_URL)
           dates = g.get_dates(page)
-          for d, u in dates[:3]:
+          for d, u in dates[:4]:
               g.scan_date(d, u)
-          print("posters", len(vox.POSTERS))
-          for k, v in list(vox.POSTERS.items())[:4]:
-              try:
-                  r = requests.get(v, headers=tg.UA, timeout=15)
-                  print(k[:20], v[:90], r.status_code, r.headers.get("content-type"), len(r.content))
-              except Exception as e:
-                  print(k[:20], v[:90], "ERR", type(e).__name__)
-          PY2
+          names = [k for k in vox.POSTERS if "Dune" in k] or list(vox.POSTERS)
+          m = names[0]
+          vox.POSTERS["[TEST] " + m] = vox.POSTERS[m]
+          msg = "🎟️ موعد حجز جديد!\n17/12/2026\n[TEST] " + m + "\nCity Centre Almaza\nIMAX 1\n12:30 PM\nhttps://egy.voxcinemas.com/movies"
+          vox.send_message(msg)
+          print("poster found", bool(vox.POSTERS[m]), "composed files", n[0])
+          open("/tmp/out/poster_url.txt", "w").write(vox.POSTERS[m])
+          PY
+      - name: Renaissance real path
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          CARDIMAGE_DIR: ${{ github.workspace }}/ci/cardimage
+        run: |
+          cd rns
+          python - <<'PY' 2>&1 | tail -6
+          import os
+          import telegram_cards as tg
+          orig = tg._post_photo
+          n = [0]
+          def spy(token, chat, photo, caption, files=None):
+              if files:
+                  n[0] += 1
+                  open("/tmp/out/rns%d.png" % n[0], "wb").write(files["photo"][1])
+              return orig(token, chat, photo, caption, files=files)
+          tg._post_photo = spy
+          import monitor
+          shows = monitor.get_shows()
+          m = next((k for k in monitor.POSTERS), None)
+          print("renaissance posters", len(monitor.POSTERS))
+          header = "🎬 <b>[TEST] %s</b>\n🆕 <b>New movie</b>\n🏛 Renaissance Downtown" % tg.esc(m)
+          lines = ["📅 <b>Sat 21 Nov</b>", "    🕒 <b>7:00 PM</b> · 2D · Standard · " + tg.link("https://example.com", "Book 🎟"),
+                   "    🕒 <b>9:30 PM</b> · 2D · Standard · " + tg.link("https://example.com", "Book 🎟")]
+          tg.send_card(os.environ["BOT_TOKEN"], os.environ["CHAT_ID"], header, lines, photo=tg.resolve_poster(monitor.POSTERS.get(m)))
+          print("composed files", n[0])
+          PY
+      - name: Seat card (watcher bot identity)
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.DOOMSDAY_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import json
+          p = open("/tmp/out/poster_url.txt").read().strip() if __import__("os").path.exists("/tmp/out/poster_url.txt") else ""
+          json.dump({"movie": "Dune: Part Three", "place": "VOX City Centre Almaza", "date": "17/12/2026", "time": "12:30 PM",
+                     "hall": "IMAX 1", "regular": 76, "previous": 78, "premium": "", "poster_url": p,
+                     "url": "https://egy.voxcinemas.com/booking/0047-276742", "test": True}, open("/tmp/req.json", "w"))
+          PY
+          cd ci/cardimage && CARD_OUT=/tmp/out/seat.png python seat_alert.py /tmp/req.json 2>&1 | tail -3
+          cp /tmp/req.json /tmp/out/ 2>/dev/null; true
+      - name: Save images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cards
+          path: /tmp/out/*.png
+          retention-days: 1
