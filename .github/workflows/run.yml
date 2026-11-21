@@ -50,6 +50,7 @@ jobs:
       - name: Save state
         if: always()
         run: |
+          rc=0
           save() {
             cd "$1"
             git config user.name "monitor"
@@ -57,10 +58,17 @@ jobs:
             git add -f $2 >/dev/null 2>&1
             if ! git diff --cached --quiet; then
               git commit -q -m "Update monitor state" >/dev/null 2>&1
-              git pull -q --rebase -X theirs origin main >/dev/null 2>&1 || git rebase --abort >/dev/null 2>&1 || true
-              git push -q >/dev/null 2>&1 && echo "$1 state saved" || echo "$1 push failed"
+              n=0; done_=1
+              while [ $n -lt 4 ]; do
+                n=$((n+1))
+                git pull -q --rebase -X theirs origin main >/dev/null 2>&1 || git rebase --abort >/dev/null 2>&1 || true
+                if git push -q >/dev/null 2>&1; then done_=0; break; fi
+                sleep $((n*3))
+              done
+              if [ $done_ -eq 0 ]; then echo "$1 state saved (attempt $n)"; else echo "$1 PUSH FAILED after 4 attempts"; rc=1; fi
             fi
             cd ..
           }
           save vox vox_rotating_state.json
           save rns "renaissance_state.json upcoming_state.json"
+          exit $rc
