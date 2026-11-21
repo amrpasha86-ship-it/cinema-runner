@@ -41,6 +41,9 @@ def main(path):
         out = os.path.join(tmp, "c.png")
         ok = cardimage.render_png(out, badge, "#4FC3F7", movie, rows, pp,
                                   brand="SEAT WATCH")
+        if ok and os.environ.get("CARD_OUT"):
+            import shutil
+            shutil.copy(out, os.environ["CARD_OUT"])
         cap = "\u200f\U0001FA91 <b>%s</b>\n\u200f%s \u00b7 %s\n\u200f%s" % (
             html.escape(badge), html.escape(req["place"]), html.escape(req["date"]),
             html.escape(reg))
