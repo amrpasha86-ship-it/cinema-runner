@@ -44,7 +44,7 @@ html,body{width:%(W)dpx;height:%(H)dpx;overflow:hidden;background:#0a0c14}
 body{font-family:A,L,sans-serif;color:#fff;position:relative}
 .bg{position:absolute;inset:0;%(bg)s%(bgpos)sbackground-color:#161a2b}
 .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,10,20,.55) 0%%,rgba(8,10,20,0) 22%%,rgba(8,10,20,0) 38%%,rgba(8,10,20,.82) 62%%,rgba(8,10,20,.97) 100%%)}
-.top{position:absolute;top:112px;left:48px;right:48px;display:flex;justify-content:flex-end;align-items:center}
+.top{position:absolute;top:%(toppx)dpx;left:48px;right:48px;display:flex;justify-content:flex-end;align-items:center}
 .brand{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:L;font-weight:700;letter-spacing:6px;font-size:20px;opacity:.75;text-shadow:0 2px 10px #000}
 .badge{background:%(accent)s;color:#0a0c14;font-weight:700;font-size:38px;padding:12px 30px;border-radius:40px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .panel{position:absolute;left:44px;right:44px;bottom:44px;padding:44px 48px 40px;border-radius:44px;background:rgba(12,15,28,.80);border:2px solid rgba(255,255,255,.16);box-shadow:0 20px 60px rgba(0,0,0,.55)}
@@ -58,7 +58,7 @@ body{font-family:A,L,sans-serif;color:#fff;position:relative}
 <div class="bg"></div><div class="shade"></div>
 <div class="top"><div class="badge">%(badge)s</div></div><div class="brand">%(brand)s</div>
 <div class="panel"><div class="title">%(movie)s</div><div class="bar"></div>%(rows)s%(foot)s</div>
-</body></html>""" % dict(f=f, W=W, H=H, bg=bg, bgpos=('background-size:auto 72%;background-repeat:no-repeat;background-position:right top;' if wide else 'background-size:cover;background-position:center top;'), accent=accent, size=size,
+</body></html>""" % dict(f=f, W=W, H=H, toppx=(112 if (poster_url and not wide) else 44), bg=bg, bgpos=('background-size:auto 72%;background-repeat:no-repeat;background-position:right top;' if wide else 'background-size:cover;background-position:center top;'), accent=accent, size=size,
                           brand=html.escape(brand), badge=html.escape(badge),
                           movie=html.escape(movie), rows=rows_html, foot=foot)
 
