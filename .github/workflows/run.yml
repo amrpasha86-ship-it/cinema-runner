@@ -37,6 +37,7 @@ jobs:
           cd vox
           python vox_rotating_github.py > /dev/null 2>&1; echo "vox exit $?"
       - name: Renaissance
+        if: always()
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
