@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ci
       - name: Fetch
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -33,6 +36,7 @@ jobs:
           TZ: Africa/Cairo
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          CARDIMAGE_DIR: ${{ github.workspace }}/ci/cardimage
         run: |
           cd vox
           python vox_rotating_github.py > /dev/null 2>&1; echo "vox exit $?"
@@ -41,6 +45,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          CARDIMAGE_DIR: ${{ github.workspace }}/ci/cardimage
         run: |
           cd rns
           printf 'BOT_TOKEN=%s\nCHAT_ID=%s\n' "$BOT_TOKEN" "$CHAT_ID" > .env
